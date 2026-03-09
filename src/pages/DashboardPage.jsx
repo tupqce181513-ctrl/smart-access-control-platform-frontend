@@ -97,13 +97,18 @@ function DashboardPage() {
     setIsLoading(true);
 
     try {
+      // Get today's start date (midnight) in ISO format
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayStartISO = todayStart.toISOString();
+
       if (user.role === ROLES.ADMIN) {
         const [usersResponse, devicesResponse, onlineDevicesResponse, todayAccessResponse, logsResponse] =
           await Promise.all([
             getUsers({ page: 1, limit: 1 }),
             getDevices({ page: 1, limit: 1 }),
             getDevices({ page: 1, limit: 1, status: 'online' }),
-            getLogs({ page: 1, limit: 1, startDate: 'today' }),
+            getLogs({ page: 1, limit: 1, startDate: todayStartISO }),
             getLogs({ page: 1, limit: 5, sort: '-timestamp' }),
           ]);
 
@@ -365,18 +370,20 @@ function DashboardPage() {
 
                   <div className="mt-3 flex items-center justify-between">
                     <StatusBadge status={device.currentState} />
-                    <button
-                      type="button"
-                      disabled={actionLoadingId === device._id}
-                      onClick={() => handleQuickControl(device._id, device.currentState)}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    >
-                      {actionLoadingId === device._id
-                        ? 'Sending...'
-                        : device.currentState === 'unlocked'
-                          ? 'Lock'
-                          : 'Unlock'}
-                    </button>
+                    {device.status !== 'offline' ? (
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === device._id}
+                        onClick={() => handleQuickControl(device._id, device.currentState)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
+                      >
+                        {actionLoadingId === device._id
+                          ? 'Sending...'
+                          : device.currentState === 'unlocked'
+                            ? 'Lock'
+                            : 'Unlock'}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -434,18 +441,20 @@ function DashboardPage() {
 
                   <div className="mt-3 flex items-center justify-between">
                     <StatusBadge status={device.currentState} />
-                    <button
-                      type="button"
-                      disabled={actionLoadingId === device._id}
-                      onClick={() => handleQuickControl(device._id, device.currentState)}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    >
-                      {actionLoadingId === device._id
-                        ? 'Sending...'
-                        : device.currentState === 'unlocked'
-                          ? 'Lock'
-                          : 'Unlock'}
-                    </button>
+                    {device.status !== 'offline' ? (
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === device._id}
+                        onClick={() => handleQuickControl(device._id, device.currentState)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
+                      >
+                        {actionLoadingId === device._id
+                          ? 'Sending...'
+                          : device.currentState === 'unlocked'
+                            ? 'Lock'
+                            : 'Unlock'}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))}

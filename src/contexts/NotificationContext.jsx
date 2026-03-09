@@ -7,11 +7,14 @@ import {
 } from '../api/notificationApi';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationContext } from './NotificationStateContext';
+import { useSocket } from './SocketContext';
+import toast from 'react-hot-toast';
 
 const normalizePayload = (response) => response?.data ?? response ?? {};
 
 export const NotificationProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [pagination, setPagination] = useState({
@@ -131,6 +134,32 @@ export const NotificationProvider = ({ children }) => {
 
     return () => clearInterval(intervalId);
   }, [clearState, fetchUnreadCount, isAuthenticated]);
+
+  // WebSocket event listener
+  useEffect(() => {
+    if (!socket || !isAuthenticated) return;
+
+    const handleNewNotification = (notification) => {
+      // Show toast
+      toast(notification.message || 'Có thông báo mới', {
+        icon: notification.type === 'device_offline' || notification.type === 'access_alert' ? '⚠' : 'ℹ',
+        style: {
+          border: '1px solid #713200',
+          padding: '16px',
+        },
+      });
+
+      // Update state
+      setUnreadCount((prev) => prev + 1);
+      setNotifications((prev) => [notification, ...prev]);
+    };
+
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket, isAuthenticated]);
 
   const value = useMemo(
     () => ({

@@ -26,6 +26,6 @@ export const deleteDevice = async (id) => {
 };
 
 export const sendCommand = async (id, command) => {
-  const response = await axiosInstance.post(`/api/devices/${id}/command`, { command });
+  const response = await axiosInstance.post(`/api/devices/${id}/command`, { action: command });
   return response.data;
 };

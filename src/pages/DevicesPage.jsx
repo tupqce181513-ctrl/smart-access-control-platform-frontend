@@ -18,7 +18,7 @@ function DevicesPage() {
   const { devices, loading, error, pagination, filters, setFilters, setPage, fetchDevices } = useDevices({
     page: 1,
     limit: 10,
-  });
+  }, user?._id);
 
   const [viewMode, setViewMode] = useState('table');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -27,7 +27,6 @@ function DevicesPage() {
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [searchInput, setSearchInput] = useState(filters.search || '');
 
   const canCreateDevice = useMemo(
     () => user?.role === ROLES.ADMIN || user?.role === ROLES.OWNER,
@@ -44,11 +43,6 @@ function DevicesPage() {
       ...nextValues,
       page: 1,
     }));
-  };
-
-  const handleApplySearch = (event) => {
-    event.preventDefault();
-    handleFilterChange({ search: searchInput.trim() });
   };
 
   const handleCreate = () => {
@@ -84,7 +78,10 @@ function DevicesPage() {
 
       setIsFormOpen(false);
       setSelectedDevice(null);
-      await refreshList();
+      // Force refetch with a small delay to ensure backend has processed
+      setTimeout(() => {
+        refreshList().catch(() => {});
+      }, 500);
     } catch (apiError) {
       const message = apiError?.response?.data?.message || 'Không thể lưu thiết bị';
       toast.error(message);
@@ -104,7 +101,10 @@ function DevicesPage() {
       await deleteDevice(deviceToDelete._id);
       toast.success('Xóa thiết bị thành công');
       setDeviceToDelete(null);
-      await refreshList();
+      // Force refetch with a small delay to ensure backend has processed
+      setTimeout(() => {
+        refreshList().catch(() => {});
+      }, 500);
     } catch (apiError) {
       const message = apiError?.response?.data?.message || 'Không thể xóa thiết bị';
       toast.error(message);
@@ -140,7 +140,7 @@ function DevicesPage() {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-800">
-        <form className="grid grid-cols-1 gap-3 md:grid-cols-4" onSubmit={handleApplySearch}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <select
             value={filters.deviceType || ''}
             onChange={(event) => handleFilterChange({ deviceType: event.target.value })}
@@ -161,21 +161,7 @@ function DevicesPage() {
             <option value={DEVICE_STATUS.ONLINE}>Online</option>
             <option value={DEVICE_STATUS.OFFLINE}>Offline</option>
           </select>
-
-          <input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by name/serial..."
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none ring-blue-500 focus:ring-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-          />
-
-          <button
-            type="submit"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            Apply Filters
-          </button>
-        </form>
+        </div>
 
         <div className="mt-3 flex items-center justify-end gap-2">
           <button
@@ -216,35 +202,48 @@ function DevicesPage() {
         </div>
       ) : null}
 
-      {viewMode === 'table' ? (
-        <DeviceTable
-          devices={devices}
-          loading={loading}
-          onControl={handleControl}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {devices.map((device) => (
-            <DeviceCard
-              key={device._id}
-              device={device}
+      {user ? (
+        <>
+          {viewMode === 'table' ? (
+            <DeviceTable
+              devices={devices}
+              loading={loading}
               onControl={handleControl}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {devices.map((device) => (
+                <DeviceCard
+                  key={device._id}
+                  device={device}
+                  onControl={handleControl}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-12 dark:border-gray-800 dark:bg-gray-800">
+          <div className="text-center">
+            <div className="mb-2 inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600 dark:border-gray-700 dark:border-t-blue-500"></div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Đang tải dữ liệu...</p>
+          </div>
         </div>
       )}
 
-      <Pagination
-        page={pagination.page || 1}
-        totalPages={pagination.totalPages || 1}
-        hasNextPage={pagination.hasNextPage || false}
-        hasPrevPage={pagination.hasPrevPage || false}
-        onPageChange={setPage}
-      />
+      {user ? (
+        <Pagination
+          page={pagination.page || 1}
+          totalPages={pagination.totalPages || 1}
+          hasNextPage={pagination.hasNextPage || false}
+          hasPrevPage={pagination.hasPrevPage || false}
+          onPageChange={setPage}
+        />
+      ) : null}
 
       {isFormOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

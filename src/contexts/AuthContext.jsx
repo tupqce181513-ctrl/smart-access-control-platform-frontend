@@ -19,6 +19,18 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 
 const getPayload = (response) => response?.data ?? response;
 
+// Normalize user object to ensure both _id and userId exist
+const normalizeUser = (user) => {
+  if (!user) return null;
+  
+  // Ensure we have both _id and userId for compatibility
+  return {
+    ...user,
+    _id: user._id || user.userId,
+    userId: user.userId || user._id,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -47,7 +59,7 @@ export const AuthProvider = ({ children }) => {
 
     setAccessToken(payload.accessToken);
     setRefreshToken(payload.refreshToken);
-    setUser(payload.user);
+    setUser(normalizeUser(payload.user));
 
     return payload;
   }, []);
@@ -89,7 +101,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = useCallback(async (data) => {
     const response = await updateProfileApi(data);
     const payload = getPayload(response);
-    setUser(payload);
+    setUser(normalizeUser(payload));
     return payload;
   }, []);
 
@@ -109,13 +121,13 @@ export const AuthProvider = ({ children }) => {
       try {
         const profileResponse = await getProfile();
         const profilePayload = getPayload(profileResponse);
-        setUser(profilePayload);
+        setUser(normalizeUser(profilePayload));
       } catch {
         try {
           await refreshAccessToken();
           const profileResponse = await getProfile();
           const profilePayload = getPayload(profileResponse);
-          setUser(profilePayload);
+          setUser(normalizeUser(profilePayload));
         } catch {
           clearAuth();
         }

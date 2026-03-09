@@ -28,7 +28,8 @@ function Sidebar() {
 
   return (
     <aside className="hidden h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 md:flex">
-      <div className="h-16 border-b border-gray-200 px-5 flex items-center dark:border-gray-800">
+      <div className="h-16 border-b border-gray-200 px-5 flex items-center gap-2 dark:border-gray-800">
+        <img src="/logo.jpg" alt="Smart Access Logo" className="h-8 w-8 rounded-md object-cover" />
         <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           Smart Access
         </h1>

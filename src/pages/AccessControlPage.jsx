@@ -11,10 +11,50 @@ import { useAuth } from '../hooks/useAuth';
 import { ACCESS_TYPES, ROLES } from '../utils/constants';
 
 const PAGE_SIZE = 10;
-const normalizePayload = (response) => response?.data ?? response ?? {};
+const normalizePayload = (response) => response ?? {};
+const extractList = (payload) => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return [];
+};
+
+const getPermissionDeviceRefId = (permission) => {
+  if (!permission) return '';
+
+  if (typeof permission.deviceId === 'string') {
+    return permission.deviceId;
+  }
+
+  return permission.deviceId?._id || '';
+};
+
+const normalizePermissionsWithDevices = (permissions, devices) => {
+  const deviceMap = new Map(devices.map((device) => [device._id, device]));
+
+  return permissions.map((permission) => {
+    const deviceRefId = getPermissionDeviceRefId(permission);
+    const mappedDevice = deviceMap.get(deviceRefId);
+
+    return {
+      ...permission,
+      deviceId:
+        typeof permission.deviceId === 'object' && permission.deviceId !== null
+          ? permission.deviceId
+          : mappedDevice || permission.deviceId,
+      deviceRefId,
+    };
+  });
+};
 
 function AccessControlPage() {
   const { user } = useAuth();
+  const effectiveUserId = user?._id || user?.userId;
 
   const [devices, setDevices] = useState([]);
   const [permissions, setPermissions] = useState([]);
@@ -34,7 +74,7 @@ function AccessControlPage() {
   const canManageAccess = user?.role === ROLES.ADMIN || user?.role === ROLES.OWNER;
 
   const fetchAccessData = useCallback(async () => {
-    if (!user?._id) {
+    if (!effectiveUserId) {
       return;
     }
 
@@ -43,19 +83,16 @@ function AccessControlPage() {
     try {
       const devicesResponse = await getDevices({ page: 1, limit: 100 });
       const devicesPayload = normalizePayload(devicesResponse);
-      const availableDevices = Array.isArray(devicesPayload?.data)
-        ? devicesPayload.data
-        : Array.isArray(devicesPayload)
-          ? devicesPayload
-          : [];
+      const availableDevices = extractList(devicesPayload);
 
       setDevices(availableDevices);
 
       if (user.role === ROLES.MEMBER) {
-        const permissionResponse = await getUserPermissions(user._id);
+        const permissionResponse = await getUserPermissions(effectiveUserId);
         const payload = normalizePayload(permissionResponse);
-        const items = Array.isArray(payload?.data) ? payload.data : [];
-        setPermissions(items);
+        const items = extractList(payload);
+        const normalizedItems = normalizePermissionsWithDevices(items, availableDevices);
+        setPermissions(normalizedItems);
         return;
       }
 
@@ -67,29 +104,32 @@ function AccessControlPage() {
 
       const mergedPermissions = permissionResponses.flatMap((response) => {
         const payload = normalizePayload(response);
-        return Array.isArray(payload?.data) ? payload.data : [];
+        return extractList(payload);
       });
 
       const uniquePermissions = Array.from(
         new Map(mergedPermissions.map((permission) => [permission._id, permission])).values()
       );
 
-      setPermissions(uniquePermissions);
+      const normalizedPermissions = normalizePermissionsWithDevices(uniquePermissions, availableDevices);
+      setPermissions(normalizedPermissions);
     } catch (error) {
       const message = error?.response?.data?.message || 'Không thể tải danh sách permissions';
       toast.error(message);
     } finally {
       setIsLoading(false);
     }
-  }, [user?._id, user?.role]);
+  }, [effectiveUserId, user?.role]);
 
   useEffect(() => {
     fetchAccessData();
   }, [fetchAccessData]);
 
   const filteredPermissions = useMemo(() => {
-    return permissions.filter((permission) => {
-      if (filters.deviceId && permission.deviceId?._id !== filters.deviceId) {
+    const next = permissions.filter((permission) => {
+      const permissionDeviceId = permission.deviceRefId || getPermissionDeviceRefId(permission);
+
+      if (filters.deviceId && permissionDeviceId !== filters.deviceId) {
         return false;
       }
 
@@ -107,6 +147,8 @@ function AccessControlPage() {
 
       return true;
     });
+
+    return next;
   }, [permissions, filters.accessType, filters.deviceId, filters.status]);
 
   const pagination = useMemo(() => {

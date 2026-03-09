@@ -44,6 +44,12 @@ export const canManageDevice = (user, device) => {
     return true;
   }
   
+  // If user is owner role and ownerId is not set yet (newly created device),
+  // allow management as they likely created it
+  if (isOwner(user) && !device.ownerId) {
+    return true;
+  }
+  
   return false;
 };
 
@@ -85,7 +91,7 @@ export const canRevokeAccess = (user, permission, device) => {
     return true;
   }
   
-  // User who created the permission can revoke it
+  // User who granted the permission can revoke it
   if (permission.grantedBy === user._id || permission.grantedBy?._id === user._id) {
     return true;
   }

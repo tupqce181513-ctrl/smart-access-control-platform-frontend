@@ -133,7 +133,7 @@ function Footer() {
               >
                 <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-blue-600 opacity-0 group-hover/contact:opacity-10 transition-opacity duration-300" />
                 <div className="relative flex items-start gap-3">
-                  <Mail size={20} className="mt-0.5 text-blue-400 flex-shrink-0" />
+                  <Mail size={20} className="mt-0.5 text-blue-400 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-500 mb-1">Email</p>
                     <p className="text-sm text-gray-300 break-all">support@smartaccess.com</p>
@@ -148,7 +148,7 @@ function Footer() {
               >
                 <div className="absolute inset-0 bg-linear-to-br from-purple-500 to-purple-600 opacity-0 group-hover/contact:opacity-10 transition-opacity duration-300" />
                 <div className="relative flex items-start gap-3">
-                  <Phone size={20} className="mt-0.5 text-purple-400 flex-shrink-0" />
+                  <Phone size={20} className="mt-0.5 text-purple-400 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-500 mb-1">Điện Thoại</p>
                     <p className="text-sm text-gray-300">+84 (28) 1234-5678</p>
@@ -160,7 +160,7 @@ function Footer() {
               <div className="relative group/contact p-4 rounded-xl bg-white/5 backdrop-blur border border-white/10 overflow-hidden">
                 <div className="absolute inset-0 bg-linear-to-br from-indigo-500 to-indigo-600 opacity-0 group-hover/contact:opacity-10 transition-opacity duration-300" />
                 <div className="relative flex items-start gap-3">
-                  <MapPin size={20} className="mt-0.5 text-indigo-400 flex-shrink-0" />
+                  <MapPin size={20} className="mt-0.5 text-indigo-400 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-500 mb-1">Địa Chỉ</p>
                     <p className="text-sm text-gray-300">TP. Hồ Chí Minh, Việt Nam</p>

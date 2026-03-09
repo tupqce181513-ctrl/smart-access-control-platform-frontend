@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { getUsers, toggleUserActive } from '../../api/userApi';
+import { getUsers, toggleUserActive, updateUserRole } from '../../api/userApi';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import EmptyState from '../../components/common/EmptyState';
 import Pagination from '../../components/common/Pagination';
@@ -29,6 +29,7 @@ function UsersPage() {
   });
   const [selectedUser, setSelectedUser] = useState(null);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [actionType, setActionType] = useState('toggle'); // 'toggle' | 'promote'
 
   const unauthorized = user?.role !== ROLES.ADMIN;
 
@@ -84,7 +85,7 @@ function UsersPage() {
     [selectedUser?._id, user?._id]
   );
 
-  const handleToggleConfirm = async () => {
+  const handleConfirmAction = async () => {
     if (!selectedUser?._id || selectedIsSelf) {
       setSelectedUser(null);
       return;
@@ -93,8 +94,14 @@ function UsersPage() {
     setToggleLoading(true);
 
     try {
-      await toggleUserActive(selectedUser._id);
-      toast.success('User status updated');
+      if (actionType === 'toggle') {
+        await toggleUserActive(selectedUser._id);
+        toast.success('User status updated');
+      } else if (actionType === 'promote') {
+        await updateUserRole(selectedUser._id, 'owner');
+        toast.success('User promoted to Owner');
+      }
+
       setSelectedUser(null);
 
       const response = await getUsers({
@@ -103,13 +110,19 @@ function UsersPage() {
         search: debouncedSearch || undefined,
       });
       const payload = normalizePayload(response);
-      setUsers(Array.isArray(payload?.data) ? payload.data : []);
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : [];
+          
+      setUsers(list);
       setPagination((prev) => ({
         ...prev,
         ...(payload?.pagination || {}),
       }));
     } catch (error) {
-      const message = error?.response?.data?.message || 'Không thể cập nhật trạng thái user';
+      const message = error?.response?.data?.message || 'Action failed';
       toast.error(message);
     } finally {
       setToggleLoading(false);
@@ -144,8 +157,111 @@ function UsersPage() {
       {!loading && users.length === 0 ? (
         <EmptyState title="No users found" description="No users match your search criteria." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800">
-          <table className="min-w-full text-sm">
+        <>
+          {/* Mobile Card View */}
+          <div className="block space-y-4 md:hidden">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-800">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
+                      <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
+                    </div>
+                  </div>
+                  <div className="mt-4 h-8 w-full rounded bg-gray-200 dark:bg-gray-700" />
+                </div>
+              ))
+            ) : (
+              users.map((item) => {
+                const isSelf = item._id === user?._id;
+                const initials = String(item.fullName || item.email || 'U').trim().charAt(0).toUpperCase();
+
+                return (
+                  <div key={item._id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-800">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white dark:bg-blue-500">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{item.fullName || '--'}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{item.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Role</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <RoleBadge role={item.role} />
+                          {item.role === ROLES.ADMIN ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                              Admin
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400">Status</p>
+                        <div className="mt-1">
+                          <StatusBadge status={item.isActive ? 'active' : 'inactive'} />
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-gray-500 dark:text-gray-400">Last Login</p>
+                        <p className="mt-1 text-gray-700 dark:text-gray-300">
+                          {item.lastLoginAt ? formatDateTime(item.lastLoginAt) : '--'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-3 dark:border-gray-700">
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          disabled={isSelf}
+                          onClick={() => {
+                            setActionType('toggle');
+                            setSelectedUser(item);
+                          }}
+                          className={`w-full rounded-lg px-4 py-2 text-sm font-medium ${
+                            item.isActive
+                              ? 'border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20'
+                              : 'border border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20'
+                          } disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {item.isActive ? 'Deactivate User' : 'Activate User'}
+                        </button>
+                        {item.role !== 'owner' && (
+                          <button
+                            type="button"
+                            disabled={isSelf}
+                            onClick={() => {
+                              setActionType('promote');
+                              setSelectedUser(item);
+                            }}
+                            className="w-full rounded-lg border border-purple-300 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/20"
+                          >
+                            Promote to Owner
+                          </button>
+                        )}
+                      </div>
+                      {isSelf ? (
+                        <p className="mt-2 text-center text-xs text-gray-400">Cannot modify yourself</p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block dark:border-gray-800 dark:bg-gray-800">
+            <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500 dark:border-gray-700 dark:text-gray-400">
                 <th className="px-4 py-3 font-medium">Avatar</th>
@@ -153,7 +269,7 @@ function UsersPage() {
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Last Login</th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell">Last Login</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -199,22 +315,40 @@ function UsersPage() {
                         <td className="px-4 py-3">
                           <StatusBadge status={item.isActive ? 'active' : 'inactive'} />
                         </td>
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                        <td className="hidden px-4 py-3 text-gray-700 md:table-cell dark:text-gray-300">
                           {item.lastLoginAt ? formatDateTime(item.lastLoginAt) : '--'}
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            disabled={isSelf}
-                            onClick={() => setSelectedUser(item)}
-                            className={`rounded px-3 py-1.5 text-xs font-medium ${
-                              item.isActive
-                                ? 'border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20'
-                                : 'border border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20'
-                            } disabled:cursor-not-allowed disabled:opacity-50`}
-                          >
-                            {item.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={isSelf}
+                              onClick={() => {
+                                setActionType('toggle');
+                                setSelectedUser(item);
+                              }}
+                              className={`rounded px-3 py-1.5 text-xs font-medium ${
+                                item.isActive
+                                  ? 'border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20'
+                                  : 'border border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20'
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              {item.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            {item.role !== 'owner' && (
+                              <button
+                                type="button"
+                                disabled={isSelf}
+                                onClick={() => {
+                                  setActionType('promote');
+                                  setSelectedUser(item);
+                                }}
+                                className="rounded border border-purple-300 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/20"
+                              >
+                                Promote to Owner
+                              </button>
+                            )}
+                          </div>
                           {isSelf ? (
                             <p className="mt-1 text-[10px] text-gray-400">Cannot modify yourself</p>
                           ) : null}
@@ -224,7 +358,8 @@ function UsersPage() {
                   })}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
 
       <Pagination
@@ -237,17 +372,37 @@ function UsersPage() {
 
       <ConfirmModal
         isOpen={!!selectedUser}
-        title={selectedUser?.isActive ? 'Deactivate User' : 'Activate User'}
+        title={
+          actionType === 'promote'
+            ? 'Promote User'
+            : selectedUser?.isActive
+              ? 'Deactivate User'
+              : 'Activate User'
+        }
         message={
           selectedUser
-            ? `Are you sure you want to ${selectedUser.isActive ? 'deactivate' : 'activate'} ${selectedUser.fullName || selectedUser.email}?`
+            ? actionType === 'promote'
+              ? `Are you sure you want to promote ${selectedUser.fullName || selectedUser.email} to Owner? They will have full access equivalent to Admin.`
+              : `Are you sure you want to ${selectedUser.isActive ? 'deactivate' : 'activate'} ${selectedUser.fullName || selectedUser.email}?`
             : ''
         }
-        confirmText={selectedUser?.isActive ? 'Deactivate' : 'Activate'}
-        variant={selectedUser?.isActive ? 'danger' : 'info'}
+        confirmText={
+          actionType === 'promote'
+            ? 'Promote to Owner'
+            : selectedUser?.isActive
+              ? 'Deactivate'
+              : 'Activate'
+        }
+        variant={
+          actionType === 'promote'
+            ? 'info'
+            : selectedUser?.isActive
+              ? 'danger'
+              : 'info'
+        }
         isLoading={toggleLoading}
         onCancel={() => setSelectedUser(null)}
-        onConfirm={handleToggleConfirm}
+        onConfirm={handleConfirmAction}
       />
     </div>
   );

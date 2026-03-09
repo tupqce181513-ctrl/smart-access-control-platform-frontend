@@ -27,3 +27,8 @@ export const toggleUserActive = async (id) => {
   const response = await axiosInstance.put(`/api/users/${id}/toggle-active`);
   return response.data;
 };
+
+export const updateUserRole = async (id, role) => {
+  const response = await axiosInstance.put(`/api/users/${id}/role`, { role });
+  return response.data;
+};

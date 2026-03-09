@@ -63,8 +63,8 @@ function LoginPage() {
         <div className="rounded-2xl border border-white/20 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl p-8 shadow-2xl">
           {/* Logo and header */}
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-600 to-indigo-600 mb-4 shadow-lg">
-              <Lock size={32} className="text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white mb-4 shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+              <img src="/logo.jpg" alt="Smart Access Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600">
               Smart Access Control
